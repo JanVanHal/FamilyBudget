@@ -1,5 +1,6 @@
 /* =========================================================
-   Family Budget Planner Pro — Application Logic
+   Family Budget Planner — Application Logic
+   (FreshBooks-restyled build)
    ========================================================= */
 
 // ── Constants ────────────────────────────────────────────
@@ -14,8 +15,8 @@ const CURRENCY_MAP = {
 };
 
 const CHART_COLORS = [
-    '#6366f1','#f43f5e','#10b981','#f59e0b',
-    '#3b82f6','#06b6d4','#8b5cf6','#ec4899','#f97316','#64748b'
+    '#0075DD','#00A86B','#F97316','#E53E3E',
+    '#8B5CF6','#06B6D4','#F59E0B','#EC4899','#64748B','#10B981'
 ];
 
 // ── State ─────────────────────────────────────────────────
@@ -32,17 +33,14 @@ let categories      = JSON.parse(localStorage.getItem('budgetCategories'))  || [
     'Entertainment','Healthcare','Salary','Other'
 ];
 
-let currentMonthIdx = new Date().getMonth();
-let currentMode     = 'monthly';
-let selectedType    = 'expense';
+let currentMonthIdx  = new Date().getMonth();
+let currentMode      = 'monthly';
+let selectedType     = 'expense';
 let selectedCategory = categories[0] || 'Other';
 
-// Chart instances
 let pieChart, barChart, yearlyChart, yearlyDistributionPieChart;
 
 // ── Utilities ─────────────────────────────────────────────
-
-/** XSS-safe escaping for all user-supplied text injected into innerHTML */
 function escapeHtml(str) {
     return String(str || '')
         .replace(/&/g, '&amp;')
@@ -54,39 +52,54 @@ function escapeHtml(str) {
 
 function formatCurrency(amount, includeSign = false) {
     const sym = CURRENCY_MAP[settings.currency];
-    const absValue = Math.abs(amount).toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+    const abs = Math.abs(amount);
+    // Show decimals only when there are actual cents
+    const hasCents = (abs % 1) !== 0;
+    const decimals = hasCents ? 2 : 0;
+    const absValue = abs.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
     });
-    if (!includeSign) return `${sym} ${absValue}`;
-    const sign = amount < 0 ? '-' : (amount > 0 ? '+' : '');
-    return `${sign}${sym} ${absValue}`;
+    if (!includeSign) return `${sym}\u202F${absValue}`;
+    const sign = amount < 0 ? '−' : (amount > 0 ? '+' : '');
+    return `${sign}${sym}\u202F${absValue}`;
+}
+
+// Stat card amounts — never show decimals regardless of cents
+function formatStat(amount) {
+    const sym = CURRENCY_MAP[settings.currency];
+    const absValue = Math.abs(amount).toLocaleString(undefined, {
+        minimumFractionDigits: 0, maximumFractionDigits: 0
+    });
+    return `${sym}\u202F${absValue}`;
 }
 
 function formatDate(isoString) {
-    if (!isoString) return '---';
+    if (!isoString) return '—';
     return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** Proper CSV row parser — handles quoted fields containing commas */
 function parseCSVRow(row) {
     const cols = [];
-    let current = '';
-    let inQuotes = false;
+    let current = '', inQuotes = false;
     for (let i = 0; i < row.length; i++) {
         const ch = row[i];
         if (ch === '"') {
             if (inQuotes && row[i + 1] === '"') { current += '"'; i++; }
             else { inQuotes = !inQuotes; }
         } else if (ch === ',' && !inQuotes) {
-            cols.push(current.trim());
-            current = '';
-        } else {
-            current += ch;
-        }
+            cols.push(current.trim()); current = '';
+        } else { current += ch; }
     }
     cols.push(current.trim());
     return cols;
+}
+
+// ── View switching ─────────────────────────────────────────
+function showView(name) {
+    document.getElementById('yearlyView').style.display            = name === 'yearly'       ? '' : 'none';
+    document.getElementById('yearlyDistributionView').style.display = name === 'distribution' ? '' : 'none';
+    document.getElementById('monthlyView').style.display           = name === 'monthly'      ? '' : 'none';
 }
 
 // ── Initialisation ────────────────────────────────────────
@@ -97,20 +110,20 @@ function init() {
     updateTemplatesUI();
     initCharts();
     switchMonth(currentMonthIdx);
-
     document.getElementById('budgetForm').addEventListener('submit', handleFormSubmit);
 }
 
 // ── Settings ──────────────────────────────────────────────
 function toggleSettings() {
     const modal = document.getElementById('settingsModal');
-    const isHidden = modal.classList.contains('hidden');
-    modal.classList.toggle('hidden', !isHidden);
-    modal.classList.toggle('flex', isHidden);
-    if (isHidden) {
+    const isOpen = modal.style.display !== 'none';
+    if (isOpen) {
+        modal.style.display = 'none';
+    } else {
         document.getElementById('settingFamilyName').value = settings.familyName || '';
         document.getElementById('settingYear').value       = settings.year;
         document.getElementById('settingCurrency').value   = settings.currency;
+        modal.style.display = 'flex';
     }
 }
 
@@ -124,7 +137,6 @@ function saveSettings() {
     if (oldYear !== settings.year) {
         allTransactions = JSON.parse(localStorage.getItem(`familyBudget_v${settings.year}`)) || {};
     }
-
     applySettingsUI();
     toggleSettings();
     updateUI();
@@ -135,51 +147,60 @@ function saveSettings() {
 
 function applySettingsUI() {
     const sym = CURRENCY_MAP[settings.currency];
-    document.getElementById('displayFamilyName').innerText = settings.familyName ? `(${settings.familyName})` : '';
-    document.getElementById('currencyIcon').innerText      = sym;
-    document.querySelectorAll('.curr-sym').forEach(el  => el.innerText = sym);
-    document.querySelectorAll('.year-label').forEach(el => el.innerText = settings.year);
-    document.getElementById('tableTitle').innerText = `${MONTHS[currentMonthIdx]} ${settings.year} Transactions`;
+    const name = settings.familyName;
+
+    // Nav
+    const navIcon = document.getElementById('navCurrencyIcon');
+    if (navIcon) navIcon.textContent = sym;
+
+    const nameEl = document.getElementById('displayFamilyName');
+    if (nameEl) nameEl.textContent = name ? `— ${name}` : '';
+
+    // Currency symbols in form
+    document.querySelectorAll('.curr-sym').forEach(el => el.textContent = sym);
+
+    // Year labels
+    document.querySelectorAll('.year-label').forEach(el => el.textContent = settings.year);
+
+    // Table title
+    const titleEl = document.getElementById('tableTitle');
+    if (titleEl) titleEl.textContent = `${MONTHS[currentMonthIdx]} ${settings.year} Transactions`;
 }
 
-// ── Navigation / Tabs ─────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────
 function renderTabs() {
     const container = document.getElementById('monthTabs');
     container.innerHTML = '';
 
     MONTHS.forEach((m, idx) => {
         const btn = document.createElement('button');
-        btn.className = `px-6 py-4 text-sm font-semibold transition-all hover:text-indigo-600 ${
-            currentMonthIdx === idx && currentMode === 'monthly' ? 'tab-active' : 'text-slate-400'
-        }`;
-        btn.innerText = m;
-        btn.onclick   = () => switchMonth(idx);
+        btn.className = `fb-tab${currentMonthIdx === idx && currentMode === 'monthly' ? ' active' : ''}`;
+        btn.textContent = m;
+        btn.onclick     = () => switchMonth(idx);
         container.appendChild(btn);
     });
 
-    const yearlyBtn = document.createElement('button');
-    yearlyBtn.className = `px-6 py-4 text-sm font-semibold transition-all hover:text-indigo-600 ml-auto ${
-        currentMode === 'yearly' ? 'tab-active' : 'text-slate-400'
-    }`;
-    yearlyBtn.innerText = "Yearly Overview";
-    yearlyBtn.onclick   = showYearlyOverview;
-    container.appendChild(yearlyBtn);
+    const spacer = document.createElement('div');
+    spacer.className = 'fb-tab-spacer';
+    container.appendChild(spacer);
+
+    const yearBtn = document.createElement('button');
+    yearBtn.className = `fb-tab${currentMode === 'yearly' ? ' active' : ''}`;
+    yearBtn.textContent = 'Yearly';
+    yearBtn.onclick     = showYearlyOverview;
+    container.appendChild(yearBtn);
 
     const distBtn = document.createElement('button');
-    distBtn.className = `px-6 py-4 text-sm font-semibold transition-all hover:text-indigo-600 ${
-        currentMode === 'distribution' ? 'tab-active' : 'text-slate-400'
-    }`;
-    distBtn.innerText = "Yearly Distribution";
-    distBtn.onclick   = showYearlyDistribution;
+    distBtn.className = `fb-tab${currentMode === 'distribution' ? ' active' : ''}`;
+    distBtn.textContent = 'Distribution';
+    distBtn.onclick     = showYearlyDistribution;
     container.appendChild(distBtn);
 }
 
 function switchMonth(idx) {
     currentMonthIdx = idx;
     currentMode = 'monthly';
-    document.getElementById('monthlyView').classList.remove('hidden');
-    document.getElementById('yearlyView').classList.add('hidden');
-    document.getElementById('yearlyDistributionView').classList.add('hidden');
+    showView('monthly');
     applySettingsUI();
     renderTabs();
     updateUI();
@@ -188,23 +209,19 @@ function switchMonth(idx) {
 
 function showYearlyOverview() {
     currentMode = 'yearly';
-    document.getElementById('monthlyView').classList.add('hidden');
-    document.getElementById('yearlyView').classList.remove('hidden');
-    document.getElementById('yearlyDistributionView').classList.add('hidden');
+    showView('yearly');
     renderTabs();
     updateYearlyUI();
 }
 
 function showYearlyDistribution() {
     currentMode = 'distribution';
-    document.getElementById('monthlyView').classList.add('hidden');
-    document.getElementById('yearlyView').classList.add('hidden');
-    document.getElementById('yearlyDistributionView').classList.remove('hidden');
+    showView('distribution');
     renderTabs();
     updateYearlyDistributionUI();
 }
 
-// ── Data Access ───────────────────────────────────────────
+// ── Data access ───────────────────────────────────────────
 function getMonthData() {
     return allTransactions[`${settings.year}_${currentMonthIdx}`] || [];
 }
@@ -214,7 +231,7 @@ function setMonthData(data) {
     localStorage.setItem(`familyBudget_v${settings.year}`, JSON.stringify(allTransactions));
 }
 
-// ── Transactions ──────────────────────────────────────────
+// ── Transaction form ──────────────────────────────────────
 function handleFormSubmit(e) {
     e.preventDefault();
     const amount = parseFloat(document.getElementById('amount').value);
@@ -229,7 +246,6 @@ function handleFormSubmit(e) {
         category: selectedCategory,
         date:     new Date().toISOString()
     });
-
     setMonthData(data);
     e.target.reset();
     setFormType('expense');
@@ -246,52 +262,52 @@ function deleteTransaction(id) {
     updateCharts();
 }
 
-// ── UI Render — Monthly View ──────────────────────────────
+// ── Monthly UI render ─────────────────────────────────────
 function updateUI() {
     const data = getMonthData();
     const list = document.getElementById('transactionList');
     list.innerHTML = '';
-    let inc = 0, exp = 0;
-    document.getElementById('emptyState').classList.toggle('hidden', data.length > 0);
+
+    const emptyEl = document.getElementById('emptyState');
+    emptyEl.style.display = data.length === 0 ? '' : 'none';
 
     const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
 
     sortedData.forEach(t => {
         const isExp = t.type === 'expense';
         const row   = document.createElement('tr');
-        row.className = "hover:bg-slate-50 transition-colors group";
         row.innerHTML = `
-            <td class="px-6 py-4 text-xs font-semibold text-slate-400 tabular-nums">${formatDate(t.date)}</td>
-            <td class="px-6 py-4 font-medium text-slate-700">${escapeHtml(t.desc)}</td>
-            <td class="px-6 py-4">
-                <span class="text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">
-                    ${escapeHtml(t.category)}
-                </span>
+            <td style="color:var(--fb-slate); font-size:.78rem;">${formatDate(t.date)}</td>
+            <td style="font-weight:500;">${escapeHtml(t.desc)}</td>
+            <td><span class="cat-badge">${escapeHtml(t.category)}</span></td>
+            <td style="text-align:right;" class="${isExp ? 'amount-negative' : 'amount-positive'}">
+                ${isExp ? '−' : '+'}${formatCurrency(t.amount)}
             </td>
-            <td class="px-6 py-4 text-right font-bold ${isExp ? 'text-red-500' : 'text-green-500'} tabular-nums">
-                ${formatCurrency(t.amount, true)}
-            </td>
-            <td class="px-6 py-4 text-right no-print">
-                <button onclick="deleteTransaction(${JSON.stringify(t.id)})"
-                    class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                    title="Delete">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            <td class="no-print" style="text-align:right;">
+                <button class="delete-btn" onclick="deleteTransaction(${JSON.stringify(t.id)})" title="Delete">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                     </svg>
                 </button>
             </td>`;
         list.appendChild(row);
     });
 
+    let inc = 0, exp = 0;
     data.forEach(t => { if (t.type === 'expense') exp += t.amount; else inc += t.amount; });
+    const net = inc - exp;
 
-    document.getElementById('totalBalance').innerText = formatCurrency(inc - exp, true);
-    document.getElementById('totalIncome').innerText  = `+${formatCurrency(inc)}`;
-    document.getElementById('totalExpense').innerText = `-${formatCurrency(exp)}`;
-    document.getElementById('transCount').innerText   = `${data.length} Entries`;
+    const balEl = document.getElementById('totalBalance');
+    balEl.textContent = formatStat(Math.abs(net));
+    balEl.className = `stat-value-sm ${net >= 0 ? 'positive' : 'negative'}`;
+
+    document.getElementById('totalIncome').textContent  = formatStat(inc);
+    document.getElementById('totalExpense').textContent = formatStat(exp);
+    document.getElementById('transCount').textContent   = `${data.length} entries`;
+    applySettingsUI();
 }
 
-// ── UI Render — Yearly Overview ───────────────────────────
+// ── Yearly Overview render ────────────────────────────────
 function updateYearlyUI() {
     let yInc = 0, yExp = 0;
     const monthlyStats = MONTHS.map((_, idx) => {
@@ -302,72 +318,73 @@ function updateYearlyUI() {
         return { inc, exp, net: inc - exp };
     });
 
-    document.getElementById('yearlyNet').innerText    = formatCurrency(yInc - yExp, true);
-    document.getElementById('yearlyIncome').innerText = formatCurrency(yInc);
-    document.getElementById('yearlyExpense').innerText = formatCurrency(yExp);
+    const net = yInc - yExp;
+    const netEl = document.getElementById('yearlyNet');
+    netEl.textContent = formatStat(Math.abs(net));
+    netEl.className = `stat-value ${net >= 0 ? 'positive' : 'negative'}`;
+    document.getElementById('yearlyIncome').textContent  = formatStat(yInc);
+    document.getElementById('yearlyExpense').textContent = formatStat(yExp);
 
     const tbody = document.getElementById('yearlyTableBody');
     tbody.innerHTML = '';
     monthlyStats.forEach((s, i) => {
         const row = document.createElement('tr');
-        row.className = "hover:bg-slate-50";
+        const netCls = s.net >= 0 ? 'amount-positive' : 'amount-negative';
         row.innerHTML = `
-            <td class="py-3 font-semibold text-slate-600">${MONTHS[i]}</td>
-            <td class="py-3 text-green-600 tabular-nums">${formatCurrency(s.inc, true)}</td>
-            <td class="py-3 text-red-600 tabular-nums">${formatCurrency(-s.exp, true)}</td>
-            <td class="py-3 text-right font-bold ${s.net >= 0 ? 'text-indigo-600' : 'text-red-800'} tabular-nums">
-                ${formatCurrency(s.net, true)}
-            </td>`;
+            <td style="font-weight:500;">${MONTHS[i]}</td>
+            <td class="amount-positive">${formatCurrency(s.inc)}</td>
+            <td class="amount-negative">${formatCurrency(s.exp)}</td>
+            <td style="text-align:right;" class="${netCls}">${formatCurrency(Math.abs(s.net))} ${s.net >= 0 ? '▲' : '▼'}</td>`;
         tbody.appendChild(row);
     });
     updateYearlyChart(monthlyStats);
 }
 
-// ── UI Render — Yearly Distribution ──────────────────────
+// ── Yearly Distribution render ────────────────────────────
 function updateYearlyDistributionUI() {
     const categoryExpenses = {};
-    let totalYearlyExpense = 0;
+    let total = 0;
 
     MONTHS.forEach((_, idx) => {
         const data = allTransactions[`${settings.year}_${idx}`] || [];
         data.forEach(t => {
             if (t.type === 'expense') {
                 categoryExpenses[t.category] = (categoryExpenses[t.category] || 0) + t.amount;
-                totalYearlyExpense += t.amount;
+                total += t.amount;
             }
         });
     });
 
-    const tbody = document.getElementById('yearlyDistributionTableBody');
+    const sorted = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]);
+    const tbody  = document.getElementById('yearlyDistributionTableBody');
     tbody.innerHTML = '';
 
-    const sortedCategories = Object.entries(categoryExpenses).sort((a, b) => b[1] - a[1]);
-
-    if (sortedCategories.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="py-8 text-center text-slate-400 italic">No yearly expenses to display.</td></tr>';
+    if (sorted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:32px; color:var(--fb-slate-light);">No expenses yet</td></tr>';
     } else {
-        sortedCategories.forEach(([cat, amount]) => {
-            const pct = totalYearlyExpense > 0 ? ((amount / totalYearlyExpense) * 100).toFixed(1) : 0;
+        sorted.forEach(([cat, amount]) => {
+            const pct = total > 0 ? ((amount / total) * 100).toFixed(1) : 0;
             const row = document.createElement('tr');
-            row.className = "hover:bg-slate-50";
             row.innerHTML = `
-                <td class="py-4 font-semibold text-slate-600">${escapeHtml(cat)}</td>
-                <td class="py-4 text-right font-bold text-slate-800 tabular-nums">${formatCurrency(amount)}</td>
-                <td class="py-4 text-right text-slate-400 tabular-nums">${pct}%</td>`;
+                <td><span class="cat-badge">${escapeHtml(cat)}</span></td>
+                <td style="text-align:right; font-weight:600;">${formatCurrency(amount)}</td>
+                <td style="text-align:right; color:var(--fb-slate);">${pct}%</td>`;
             tbody.appendChild(row);
         });
     }
 
-    yearlyDistributionPieChart.data.labels               = sortedCategories.map(c => c[0]);
-    yearlyDistributionPieChart.data.datasets[0].data     = sortedCategories.map(c => c[1]);
+    yearlyDistributionPieChart.data.labels           = sorted.map(c => c[0]);
+    yearlyDistributionPieChart.data.datasets[0].data = sorted.map(c => c[1]);
     yearlyDistributionPieChart.update();
 }
 
-// ── Form Helpers ──────────────────────────────────────────
+// ── Form helpers ──────────────────────────────────────────
 function setFormType(type) {
     selectedType = type;
-    document.getElementById('typeExp').classList.toggle('pill-selected', type === 'expense');
-    document.getElementById('typeInc').classList.toggle('pill-selected', type === 'income');
+    const expBtn = document.getElementById('typeExp');
+    const incBtn = document.getElementById('typeInc');
+    expBtn.className = `type-btn${type === 'expense' ? ' active-expense' : ''}`;
+    incBtn.className = `type-btn${type === 'income' ? ' active-income' : ''}`;
 }
 
 function renderCategoryPills() {
@@ -380,11 +397,9 @@ function renderCategoryPills() {
         const b = document.createElement('button');
         b.type = 'button';
         b.setAttribute('data-category', cat);
-        b.className = `cat-pill px-3 py-1.5 text-[10px] uppercase font-bold border border-slate-200 rounded-full bg-slate-50 text-slate-500 transition-all ${
-            selectedCategory === cat ? 'pill-selected' : ''
-        }`;
-        b.innerText = cat;
-        b.onclick   = () => {
+        b.className = `cat-pill${selectedCategory === cat ? ' pill-selected' : ''}`;
+        b.textContent = cat;
+        b.onclick = () => {
             selectedCategory = cat;
             document.querySelectorAll('.cat-pill').forEach(p => {
                 p.classList.toggle('pill-selected', p.getAttribute('data-category') === cat);
@@ -395,17 +410,16 @@ function renderCategoryPills() {
 }
 
 function promptAddCategory() {
-    const n = prompt("Enter new category name:");
+    const n = prompt("New category name:");
     if (n && n.trim() && !categories.includes(n.trim())) {
-        const newCat = n.trim();
-        categories.push(newCat);
+        categories.push(n.trim());
         localStorage.setItem('budgetCategories', JSON.stringify(categories));
-        selectedCategory = newCat;
+        selectedCategory = n.trim();
         renderCategoryPills();
     }
 }
 
-// ── Templates (Quick Add) ─────────────────────────────────
+// ── Templates ─────────────────────────────────────────────
 function saveAsTemplate() {
     const desc   = document.getElementById('desc').value.trim();
     const amount = parseFloat(document.getElementById('amount').value);
@@ -426,30 +440,27 @@ function updateTemplatesUI() {
     const c = document.getElementById('templatesContainer');
     c.innerHTML = '';
     if (templates.length === 0) {
-        c.innerHTML = '<div class="text-[10px] text-slate-400 text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl">No quick-adds saved.</div>';
+        c.innerHTML = `<div style="text-align:center; padding:14px 0; font-size:.75rem; color:var(--fb-slate-light);">
+            No quick-adds saved yet.<br>Save a transaction to create one.
+        </div>`;
         return;
     }
     templates.forEach(t => {
+        const isExp   = t.type === 'expense';
         const wrapper = document.createElement('div');
-        wrapper.className = "quick-add-item group relative flex items-center w-full";
-        const isExp = t.type === 'expense';
+        wrapper.className = 'template-item';
         wrapper.innerHTML = `
-            <button class="flex-1 flex justify-between items-center px-4 py-3 bg-white text-xs font-medium rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all shadow-sm">
-                <div class="flex flex-col text-left">
-                    <span class="text-slate-800 font-bold">${escapeHtml(t.desc)}</span>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${escapeHtml(t.category)}</span>
+            <button class="template-btn">
+                <div>
+                    <div style="font-size:.82rem; font-weight:600; color:var(--fb-lead);">${escapeHtml(t.desc)}</div>
+                    <div style="font-size:.68rem; color:var(--fb-slate-light); text-transform:uppercase; letter-spacing:.04em; margin-top:1px;">${escapeHtml(t.category)}</div>
                 </div>
-                <span class="${isExp ? 'text-red-500' : 'text-green-600'} font-bold tabular-nums">
-                    ${formatCurrency(t.amount, true)}
+                <span style="font-size:.82rem; font-weight:700; color:${isExp ? 'var(--fb-red)' : 'var(--fb-green)'};">
+                    ${isExp ? '−' : '+'}${formatCurrency(t.amount)}
                 </span>
             </button>
-            <button onclick="deleteTemplate(${t.id}, event)"
-                class="delete-template absolute -right-1 -top-1 bg-red-500 text-white rounded-full p-1 opacity-0 transition-opacity shadow-md z-20">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-            </button>`;
-        wrapper.querySelector('button:first-child').onclick = () => {
+            <button class="template-delete" onclick="deleteTemplate(${t.id}, event)">✕</button>`;
+        wrapper.querySelector('.template-btn').onclick = () => {
             const data = getMonthData();
             data.push({ ...t, id: Date.now() + Math.random(), date: new Date().toISOString() });
             setMonthData(data);
@@ -464,16 +475,22 @@ function updateTemplatesUI() {
 function initCharts() {
     const opts = { responsive: true, maintainAspectRatio: false };
 
+    Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
+    Chart.defaults.color       = '#6B7280';
+
     pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
         type: 'doughnut',
-        data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS }] },
-        options: { ...opts, plugins: { legend: { display: false } } }
+        data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS, borderWidth: 2, borderColor: '#fff' }] },
+        options: { ...opts, cutout: '65%', plugins: { legend: { display: false } } }
     });
 
     barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
         type: 'bar',
-        data: { labels: ['Income', 'Expense'], datasets: [{ data: [0, 0], backgroundColor: ['#10b981', '#f43f5e'] }] },
-        options: { ...opts, plugins: { legend: { display: false } } }
+        data: {
+            labels: ['Income', 'Expenses'],
+            datasets: [{ data: [0, 0], backgroundColor: ['#00A86B', '#E53E3E'], borderRadius: 6, borderSkipped: false }]
+        },
+        options: { ...opts, plugins: { legend: { display: false } }, scales: { y: { grid: { color: '#F0F2F5' } }, x: { grid: { display: false } } } }
     });
 
     yearlyChart = new Chart(document.getElementById('yearlyChart').getContext('2d'), {
@@ -481,17 +498,17 @@ function initCharts() {
         data: {
             labels: MONTHS,
             datasets: [
-                { label: 'Income',  data: [], borderColor: '#10b981', tension: 0.3, fill: false },
-                { label: 'Expense', data: [], borderColor: '#f43f5e', tension: 0.3, fill: false }
+                { label: 'Income',   data: [], borderColor: '#00A86B', backgroundColor: 'rgba(0,168,107,.08)', tension: 0.4, fill: true, pointBackgroundColor: '#00A86B', pointRadius: 4 },
+                { label: 'Expenses', data: [], borderColor: '#E53E3E', backgroundColor: 'rgba(229,62,62,.06)',  tension: 0.4, fill: true, pointBackgroundColor: '#E53E3E', pointRadius: 4 }
             ]
         },
-        options: opts
+        options: { ...opts, scales: { y: { grid: { color: '#F0F2F5' } }, x: { grid: { display: false } } } }
     });
 
     yearlyDistributionPieChart = new Chart(document.getElementById('yearlyDistributionPieChart').getContext('2d'), {
-        type: 'pie',
-        data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS }] },
-        options: { ...opts, plugins: { legend: { display: false } } }
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS, borderWidth: 2, borderColor: '#fff' }] },
+        options: { ...opts, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } } } }
     });
 }
 
@@ -502,10 +519,10 @@ function updateCharts() {
         if (t.type === 'expense') { cats[t.category] = (cats[t.category] || 0) + t.amount; exp += t.amount; }
         else { inc += t.amount; }
     });
-    pieChart.data.labels              = Object.keys(cats);
-    pieChart.data.datasets[0].data    = Object.values(cats);
+    pieChart.data.labels           = Object.keys(cats);
+    pieChart.data.datasets[0].data = Object.values(cats);
     pieChart.update();
-    barChart.data.datasets[0].data    = [inc, exp];
+    barChart.data.datasets[0].data = [inc, exp];
     barChart.update();
 }
 
@@ -523,20 +540,16 @@ function handleFileSelect(event) {
     reader.onload = function(e) {
         const rows = e.target.result.split(/\r?\n/);
         let newTransactions = { ...allTransactions };
-
         for (let i = 1; i < rows.length; i++) {
             if (!rows[i].trim()) continue;
             const cols = parseCSVRow(rows[i]);
             if (cols.length < 7) continue;
-
             const [year, monthStr, date, desc, category, type, amount] = cols;
             const monthIdx = MONTHS.indexOf(monthStr);
             if (monthIdx === -1) continue;
-
-            const key         = `${year}_${monthIdx}`;
             const parsedAmount = parseFloat(amount);
             if (isNaN(parsedAmount)) continue;
-
+            const key = `${year}_${monthIdx}`;
             if (!newTransactions[key]) newTransactions[key] = [];
             newTransactions[key].push({
                 id:       Date.now() + Math.random(),
@@ -547,11 +560,9 @@ function handleFileSelect(event) {
                 date:     date || new Date().toISOString()
             });
         }
-
         allTransactions = newTransactions;
         localStorage.setItem(`familyBudget_v${settings.year}`, JSON.stringify(allTransactions));
-        updateUI();
-        updateCharts();
+        updateUI(); updateCharts();
         if (currentMode === 'yearly')       updateYearlyUI();
         if (currentMode === 'distribution') updateYearlyDistributionUI();
         event.target.value = '';
@@ -561,7 +572,6 @@ function handleFileSelect(event) {
 
 function exportToCSV() {
     let csv = "Year,Month,Date,Description,Category,Type,Amount,Currency\n";
-    // Export current year only
     const yearKeys = Object.keys(allTransactions).filter(k => k.startsWith(`${settings.year}_`));
     yearKeys.forEach(key => {
         const [y, m] = key.split('_');
@@ -571,17 +581,16 @@ function exportToCSV() {
             csv += `${y},${MONTHS[m]},${t.date},${safeDesc},${safeCat},${t.type},${t.amount},${settings.currency}\n`;
         });
     });
-
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url  = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `Family_Budget_${settings.familyName || 'Planner'}_${settings.year}.csv`);
+    link.setAttribute('download', `Budget_${settings.familyName || 'Planner'}_${settings.year}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url); // Free memory
+    URL.revokeObjectURL(url);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────

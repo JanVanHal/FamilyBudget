@@ -1,48 +1,720 @@
 /* =========================================================
-   Family Budget Planner Pro — Custom Styles
-   Note: Utility classes are handled by Tailwind CDN.
-   This file contains only custom/component-level styles
-   that cannot be expressed with Tailwind alone.
+   Family Budget Planner — FreshBooks Design Language
+   =========================================================
+   Brand tokens
+   --fb-blue:       #0075DD   Primary actions, links, active states
+   --fb-blue-dark:  #0060B8   Hover on primary
+   --fb-blue-light: #E8F3FF   Tinted backgrounds, badges
+   --fb-lead:       #2D3142   Primary text (FreshBooks "Lead")
+   --fb-slate:      #6B7280   Secondary text
+   --fb-border:     #E5E9EF   Card borders, dividers
+   --fb-bg:         #F4F6F9   Page background
+   --fb-white:      #FFFFFF   Card surfaces
+   --fb-green:      #00A86B   Income / positive values
+   --fb-red:        #E53E3E   Expenses / negative values
+   --fb-orange:     #F97316   Warnings / secondary accent
    ========================================================= */
 
-/* ---------- Print ---------- */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+/* ── Reset / Base ──────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+    --fb-blue:        #0075DD;
+    --fb-blue-dark:   #0060B8;
+    --fb-blue-light:  #EBF4FF;
+    --fb-blue-mid:    #C7DEF8;
+    --fb-lead:        #2D3142;
+    --fb-slate:       #6B7280;
+    --fb-slate-light: #9CA3AF;
+    --fb-border:      #E5E9EF;
+    --fb-bg:          #F4F6F9;
+    --fb-white:       #FFFFFF;
+    --fb-green:       #00A86B;
+    --fb-green-light: #E6F7F1;
+    --fb-red:         #E53E3E;
+    --fb-red-light:   #FEF2F2;
+    --fb-orange:      #F97316;
+    --radius-sm:      6px;
+    --radius-md:      10px;
+    --radius-lg:      14px;
+    --radius-xl:      20px;
+    --shadow-sm:      0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:      0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+    --shadow-lg:      0 8px 24px rgba(0,0,0,.10), 0 4px 8px rgba(0,0,0,.04);
+}
+
+html { font-size: 15px; }
+
+body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--fb-bg);
+    color: var(--fb-lead);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--fb-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #C4CBD6; }
+
+/* ── Top Nav ───────────────────────────────────────────── */
+.fb-nav {
+    background: var(--fb-white);
+    border-bottom: 1px solid var(--fb-border);
+    padding: 0 28px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: var(--shadow-sm);
+}
+
+.fb-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--fb-lead);
+    text-decoration: none;
+}
+
+.fb-nav-logo {
+    width: 34px;
+    height: 34px;
+    background: var(--fb-blue);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.fb-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ── Tab Bar ───────────────────────────────────────────── */
+.fb-tabbar {
+    background: var(--fb-white);
+    border-bottom: 1px solid var(--fb-border);
+    position: sticky;
+    top: 60px;
+    z-index: 40;
+    overflow-x: auto;
+}
+
+.fb-tabbar-inner {
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    min-width: max-content;
+}
+
+.fb-tab {
+    padding: 0 16px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    font-size: .82rem;
+    font-weight: 500;
+    color: var(--fb-slate);
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+}
+
+.fb-tab:hover { color: var(--fb-blue); }
+
+.fb-tab.active {
+    color: var(--fb-blue);
+    border-bottom-color: var(--fb-blue);
+    font-weight: 600;
+}
+
+.fb-tab-spacer { margin-left: auto; }
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--fb-blue);
+    color: #fff;
+    border-color: var(--fb-blue);
+}
+.btn-primary:hover {
+    background: var(--fb-blue-dark);
+    border-color: var(--fb-blue-dark);
+    box-shadow: 0 2px 8px rgba(0,117,221,.25);
+}
+
+.btn-secondary {
+    background: var(--fb-white);
+    color: var(--fb-lead);
+    border-color: var(--fb-border);
+}
+.btn-secondary:hover {
+    background: var(--fb-bg);
+    border-color: #C4CBD6;
+}
+
+.btn-ghost {
+    background: none;
+    color: var(--fb-slate);
+    border-color: transparent;
+    padding: 0 10px;
+}
+.btn-ghost:hover {
+    background: var(--fb-bg);
+    color: var(--fb-lead);
+}
+
+.btn-icon {
+    padding: 0;
+    width: 36px;
+    justify-content: center;
+}
+
+/* ── Cards ─────────────────────────────────────────────── */
+.fb-card {
+    background: var(--fb-white);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.fb-card-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--fb-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.fb-card-title {
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--fb-slate);
+}
+
+.fb-card-body { padding: 22px; }
+
+/* ── Stat Cards ────────────────────────────────────────── */
+.stat-card {
+    background: var(--fb-white);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}
+
+.stat-card.balance::before { background: var(--fb-blue); }
+.stat-card.income::before  { background: var(--fb-green); }
+.stat-card.expense::before { background: var(--fb-red); }
+
+.stat-label {
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--fb-slate);
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    font-size: clamp(1.1rem, 3.5vw, 1.75rem);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--fb-lead);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Compact variant for the 3-up mini cards in the left column */
+.stat-value-sm {
+    font-size: clamp(.95rem, 2.8vw, 1.15rem);
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-value.positive  { color: var(--fb-green); }
+.stat-value.negative  { color: var(--fb-red); }
+.stat-value-sm.positive { color: var(--fb-green); }
+.stat-value-sm.negative { color: var(--fb-red); }
+
+.stat-icon {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 38px; height: 38px;
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+}
+
+.stat-icon.blue   { background: var(--fb-blue-light);  color: var(--fb-blue); }
+.stat-icon.green  { background: var(--fb-green-light); color: var(--fb-green); }
+.stat-icon.red    { background: var(--fb-red-light);   color: var(--fb-red); }
+
+/* ── Form Elements ─────────────────────────────────────── */
+.fb-label {
+    display: block;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--fb-slate);
+    margin-bottom: 6px;
+    letter-spacing: .03em;
+}
+
+.fb-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    background: var(--fb-white);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: .85rem;
+    color: var(--fb-lead);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.fb-input:focus {
+    border-color: var(--fb-blue);
+    box-shadow: 0 0 0 3px rgba(0,117,221,.12);
+}
+
+.fb-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+}
+
+/* ── Type Toggle (Expense / Income) ────────────────────── */
+.type-toggle {
+    display: flex;
+    background: var(--fb-bg);
+    border: 1px solid var(--fb-border);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    gap: 3px;
+}
+
+.type-btn {
+    flex: 1;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: none;
+    color: var(--fb-slate);
+    transition: background .15s, color .15s, box-shadow .15s;
+}
+
+.type-btn.active-expense {
+    background: var(--fb-white);
+    color: var(--fb-red);
+    box-shadow: var(--shadow-sm);
+}
+
+.type-btn.active-income {
+    background: var(--fb-white);
+    color: var(--fb-green);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ── Category Pills ────────────────────────────────────── */
+.cat-pill {
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: .72rem;
+    font-weight: 600;
+    border: 1px solid var(--fb-border);
+    background: var(--fb-white);
+    color: var(--fb-slate);
+    cursor: pointer;
+    transition: all .15s;
+    letter-spacing: .03em;
+}
+
+.cat-pill:hover {
+    border-color: var(--fb-blue);
+    color: var(--fb-blue);
+    background: var(--fb-blue-light);
+}
+
+.cat-pill.pill-selected {
+    background: var(--fb-blue);
+    color: #fff;
+    border-color: var(--fb-blue);
+}
+
+/* ── Transaction Table ─────────────────────────────────── */
+.fb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+}
+
+.fb-table thead tr {
+    border-bottom: 1px solid var(--fb-border);
+}
+
+.fb-table thead th {
+    padding: 10px 16px;
+    font-size: .70rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--fb-slate-light);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.fb-table tbody tr {
+    border-bottom: 1px solid #F0F2F5;
+    transition: background .1s;
+}
+
+.fb-table tbody tr:hover { background: #FAFBFC; }
+.fb-table tbody tr:last-child { border-bottom: none; }
+
+.fb-table td {
+    padding: 12px 16px;
+    color: var(--fb-lead);
+    vertical-align: middle;
+}
+
+.amount-positive { color: var(--fb-green); font-weight: 600; }
+.amount-negative { color: var(--fb-red);   font-weight: 600; }
+
+.cat-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    background: var(--fb-blue-light);
+    color: var(--fb-blue);
+}
+
+.delete-btn {
+    opacity: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--fb-slate-light);
+    transition: opacity .15s, background .15s, color .15s;
+}
+
+.fb-table tbody tr:hover .delete-btn { opacity: 1; }
+
+.delete-btn:hover {
+    background: var(--fb-red-light);
+    color: var(--fb-red);
+}
+
+/* ── Quick-Add Templates ───────────────────────────────── */
+.template-item {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.template-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1px solid var(--fb-border);
+    border-radius: var(--radius-md);
+    background: var(--fb-white);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: border-color .15s, background .15s;
+}
+
+.template-btn:hover {
+    border-color: var(--fb-blue-mid);
+    background: var(--fb-blue-light);
+}
+
+.template-delete {
+    position: absolute;
+    right: -6px;
+    top: -6px;
+    width: 18px; height: 18px;
+    border-radius: 99px;
+    background: var(--fb-red);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 10;
+}
+
+.template-item:hover .template-delete { opacity: 1; }
+
+/* ── Modal ─────────────────────────────────────────────── */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(45,49,66,.45);
+    backdrop-filter: blur(3px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-box {
+    background: var(--fb-white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 440px;
+    overflow: hidden;
+    animation: modalIn .2s ease;
+}
+
+@keyframes modalIn {
+    from { opacity: 0; transform: translateY(-12px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+}
+
+.modal-header {
+    padding: 20px 24px 18px;
+    border-bottom: 1px solid var(--fb-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--fb-lead);
+}
+
+.modal-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ── Yearly Table ──────────────────────────────────────── */
+.yearly-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+}
+
+.yearly-table thead tr {
+    border-bottom: 1px solid var(--fb-border);
+}
+
+.yearly-table th {
+    padding: 10px 14px;
+    font-size: .70rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--fb-slate-light);
+    text-align: left;
+}
+
+.yearly-table th:last-child { text-align: right; }
+
+.yearly-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #F0F2F5;
+    color: var(--fb-lead);
+}
+
+.yearly-table tr:last-child td { border-bottom: none; }
+
+.yearly-table tr:hover td { background: #FAFBFC; }
+
+/* ── Stat Cards Stack Layout ───────────────────────────── */
+.stat-cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.stat-card-full {
+    width: 100%;
+}
+
+/* Larger balance value on the full-width card */
+.stat-value-lg {
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+    .stat-cards-row { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 540px) {
+    .stat-cards-row { grid-template-columns: 1fr; }
+}
+
+/* ── Layout helpers ────────────────────────────────────── */
+.page-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 28px 48px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.monthly-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.left-col { display: flex; flex-direction: column; gap: 20px; }
+.right-col { display: flex; flex-direction: column; gap: 20px; }
+
+.sticky-col { position: sticky; top: 116px; }
+
+/* ── Empty State ───────────────────────────────────────── */
+.empty-state {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--fb-slate-light);
+    font-size: .84rem;
+}
+
+.empty-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    opacity: .4;
+}
+
+/* ── Page heading ──────────────────────────────────────── */
+.page-heading {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--fb-lead);
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-heading .year-badge {
+    font-size: .8rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    background: var(--fb-blue-light);
+    color: var(--fb-blue);
+    border-radius: 99px;
+}
+
+/* ── Print ─────────────────────────────────────────────── */
 @media print {
     .no-print  { display: none !important; }
     .print-only { display: block !important; }
-    body   { background: white; }
-    .card  { border: 1px solid #eee; box-shadow: none !important; }
-    canvas { max-width: 400px !important; margin: 0 auto; }
+    .fb-nav, .fb-tabbar { position: static; }
+    body { background: white; }
+    .fb-card, .stat-card { box-shadow: none; border: 1px solid #eee; }
+    canvas { max-width: 400px !important; }
 }
 .print-only { display: none; }
 
-/* ---------- Scrollbar ---------- */
-::-webkit-scrollbar       { width: 8px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* ---------- Category / Type pills ---------- */
-.pill-selected {
-    background-color: #4f46e5 !important;
-    color: white !important;
-    border-color: #4f46e5 !important;
-    box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
-}
-
-/* ---------- Month tab ---------- */
-.tab-active {
-    border-bottom: 3px solid #4f46e5;
-    color: #4f46e5;
-    font-weight: 700;
-}
-
-/* ---------- Quick-add delete button (visible on hover) ---------- */
-.quick-add-item:hover .delete-template {
-    opacity: 1;
-}
-
-/* ---------- Settings modal overlay ---------- */
-.modal-overlay {
-    background-color: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(4px);
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .monthly-layout { grid-template-columns: 1fr; }
+    .sticky-col { position: static; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .page-main { padding: 16px 16px 48px; }
+    .fb-nav { padding: 0 16px; }
+    .fb-tabbar-inner { padding: 0 16px; }
 }
