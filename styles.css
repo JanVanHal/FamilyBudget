@@ -595,6 +595,42 @@ body {
 
 .yearly-table tr:hover td { background: #FAFBFC; }
 
+/* ── Stat Cards Stack Layout ───────────────────────────── */
+.stat-cards-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.stat-card-full {
+    width: 100%;
+}
+
+/* Larger balance value on the full-width card */
+.stat-value-lg {
+    font-size: clamp(1.4rem, 3vw, 2.1rem);
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+    .stat-cards-row { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 540px) {
+    .stat-cards-row { grid-template-columns: 1fr; }
+}
+
 /* ── Layout helpers ────────────────────────────────────── */
 .page-main {
     max-width: 1200px;
