@@ -49,7 +49,7 @@
     <input type="file" id="csvFileInput" accept=".csv" class="hidden" onchange="handleFileSelect(event)">
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 modal-overlay">
+    <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-overlay">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
             <div class="bg-indigo-700 p-6 text-white flex justify-between items-center">
                 <h2 class="text-xl font-bold">App Settings</h2>
@@ -59,15 +59,15 @@
             </div>
             <div class="p-6 space-y-6">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Family Name</label>
+                    <label for="settingFamilyName" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Family Name</label>
                     <input type="text" id="settingFamilyName" placeholder="e.g., Smith" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Budget Year</label>
+                    <label for="settingYear" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Budget Year</label>
                     <input type="number" id="settingYear" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Currency</label>
+                    <label for="settingCurrency" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Currency</label>
                     <select id="settingCurrency" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
@@ -123,7 +123,7 @@
         
         <!-- Yearly Overview View -->
         <div id="yearlyView" class="hidden space-y-8">
-            <h2 class="text-3xl font-bold text-slate-800">Yearly Oversight <span class="year-label">2026</span></h2>
+            <h2 class="text-3xl font-bold text-slate-800">Yearly Oversight <span class="year-label"></span></h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="bg-indigo-900 text-white p-6 rounded-2xl shadow-xl">
                     <h3 class="text-xs uppercase font-bold opacity-60 mb-2">Total Yearly Net</h3>
@@ -162,7 +162,7 @@
 
         <!-- Yearly Distribution View (NEW) -->
         <div id="yearlyDistributionView" class="hidden space-y-8">
-            <h2 class="text-3xl font-bold text-slate-800">Yearly Expense Distribution <span class="year-label">2026</span></h2>
+            <h2 class="text-3xl font-bold text-slate-800">Yearly Expense Distribution <span class="year-label"></span></h2>
             
             <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
                 <h3 class="font-bold text-slate-700 mb-8 uppercase text-xs tracking-widest text-center">Cumulative Yearly Expenses by Category</h3>
@@ -210,11 +210,11 @@
                     <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-indigo-600">Add Transaction</h2>
                     <form id="budgetForm" class="space-y-5">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Description</label>
+                            <label for="desc" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Description</label>
                             <input type="text" id="desc" required placeholder="e.g., Rent" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Amount (<span class="curr-sym">$</span>)</label>
+                            <label for="amount" class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Amount (<span class="curr-sym">$</span>)</label>
                             <input type="number" id="amount" required step="0.01" placeholder="0.00" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                         </div>
                         <div>
@@ -300,6 +300,16 @@
 
         const CHART_COLORS = ['#6366f1', '#f43f5e', '#10b981', '#f59e0b', '#3b82f6', '#06b6d4', '#8b5cf6', '#ec4899', '#f97316', '#64748b'];
 
+        // Fix #1: XSS-safe HTML escaping for all user-supplied text
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Budget State
         let allTransactions = JSON.parse(localStorage.getItem(`familyBudget_v${settings.year}`)) || {}; 
         let templates = JSON.parse(localStorage.getItem('budgetTemplates')) || [];
@@ -322,8 +332,10 @@
 
         function toggleSettings() {
             const modal = document.getElementById('settingsModal');
-            modal.classList.toggle('hidden');
-            if (!modal.classList.contains('hidden')) {
+            const isHidden = modal.classList.contains('hidden');
+            modal.classList.toggle('hidden', !isHidden);
+            modal.classList.toggle('flex', isHidden);
+            if (isHidden) {
                 document.getElementById('settingFamilyName').value = settings.familyName || '';
                 document.getElementById('settingYear').value = settings.year;
                 document.getElementById('settingCurrency').value = settings.currency;
@@ -456,20 +468,20 @@
             const sortedData = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
 
             sortedData.forEach((t) => {
-                const originalIndex = data.indexOf(t);
                 const isExp = t.type === 'expense';
-                
                 const row = document.createElement('tr');
                 row.className = "hover:bg-slate-50 transition-colors group";
+                // Fix #1: escapeHtml on all user-supplied strings
+                // Fix #2: delete by t.id (not indexOf) to avoid wrong-item deletion
                 row.innerHTML = `
                     <td class="px-6 py-4 text-xs font-semibold text-slate-400 tabular-nums">${formatDate(t.date)}</td>
-                    <td class="px-6 py-4 font-medium text-slate-700">${t.desc}</td>
-                    <td class="px-6 py-4"><span class="text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">${t.category}</span></td>
+                    <td class="px-6 py-4 font-medium text-slate-700">${escapeHtml(t.desc)}</td>
+                    <td class="px-6 py-4"><span class="text-[10px] px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-bold uppercase tracking-tight">${escapeHtml(t.category)}</span></td>
                     <td class="px-6 py-4 text-right font-bold ${isExp ? 'text-red-500' : 'text-green-500'} tabular-nums">
                         ${formatCurrency(t.amount, true)}
                     </td>
                     <td class="px-6 py-4 text-right no-print">
-                        <button onclick="deleteTransaction(${originalIndex})" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Delete">
+                        <button onclick="deleteTransaction(${JSON.stringify(t.id)})" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1" title="Delete">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
                         </button>
                     </td>`;
@@ -562,6 +574,27 @@
             yearlyDistributionPieChart.update();
         }
 
+        function parseCSVRow(row) {
+            // Fix #5: proper CSV parser that handles quoted fields containing commas
+            const cols = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < row.length; i++) {
+                const ch = row[i];
+                if (ch === '"') {
+                    if (inQuotes && row[i + 1] === '"') { current += '"'; i++; }
+                    else { inQuotes = !inQuotes; }
+                } else if (ch === ',' && !inQuotes) {
+                    cols.push(current.trim());
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+            cols.push(current.trim());
+            return cols;
+        }
+
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -573,7 +606,7 @@
                 
                 for (let i = 1; i < rows.length; i++) {
                     if (!rows[i].trim()) continue;
-                    const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                    const cols = parseCSVRow(rows[i]);
                     if (cols.length < 7) continue;
 
                     const [year, monthStr, date, desc, category, type, amount] = cols;
@@ -587,6 +620,7 @@
                     if (isNaN(parsedAmount)) continue;
 
                     newTransactions[key].push({
+                        id: Date.now() + Math.random(),
                         desc: desc || 'Imported',
                         amount: Math.abs(parsedAmount),
                         type: type === 'income' ? 'income' : 'expense',
@@ -615,6 +649,7 @@
             if (isNaN(amount) || amount <= 0) return;
 
             data.push({
+                id: Date.now() + Math.random(),
                 desc: document.getElementById('desc').value,
                 amount: amount,
                 type: selectedType,
@@ -631,9 +666,9 @@
             updateCharts();
         });
 
-        function deleteTransaction(idx) {
-            const data = getMonthData();
-            data.splice(idx, 1);
+        function deleteTransaction(id) {
+            // Fix #2: filter by unique id — safe even if two transactions have identical content
+            const data = getMonthData().filter(t => t.id !== id);
             setMonthData(data);
             updateUI();
             updateCharts();
@@ -683,7 +718,8 @@
         function saveAsTemplate() {
             const desc = document.getElementById('desc').value.trim();
             const amount = parseFloat(document.getElementById('amount').value);
-            if (!desc || isNaN(amount)) return;
+            // Fix #9: also reject zero/negative amounts, consistent with form submit validation
+            if (!desc || isNaN(amount) || amount <= 0) return;
             templates.push({ desc, amount, type: selectedType, category: selectedCategory, id: Date.now() });
             localStorage.setItem('budgetTemplates', JSON.stringify(templates));
             updateTemplatesUI();
@@ -710,8 +746,8 @@
                 wrapper.innerHTML = `
                     <button class="flex-1 flex justify-between items-center px-4 py-3 bg-white text-xs font-medium rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all shadow-sm">
                         <div class="flex flex-col text-left">
-                            <span class="text-slate-800 font-bold">${t.desc}</span>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${t.category}</span>
+                            <span class="text-slate-800 font-bold">${escapeHtml(t.desc)}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">${escapeHtml(t.category)}</span>
                         </div>
                         <span class="${isExp ? 'text-red-500' : 'text-green-600'} font-bold tabular-nums">
                             ${formatCurrency(t.amount, true)}
@@ -791,7 +827,9 @@
 
         function exportToCSV() {
             let csv = "Year,Month,Date,Description,Category,Type,Amount,Currency\n";
-            Object.keys(allTransactions).forEach(key => {
+            // Fix #8: only export current year's transactions (not all years)
+            const yearKeys = Object.keys(allTransactions).filter(k => k.startsWith(`${settings.year}_`));
+            yearKeys.forEach(key => {
                 const [y, m] = key.split('_');
                 allTransactions[key].forEach(t => {
                     const safeDesc = `"${(t.desc || '').replace(/"/g, '""')}"`;
@@ -809,9 +847,12 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            // Fix #3: revoke the object URL to free memory
+            URL.revokeObjectURL(url);
         }
 
-        window.onload = init;
+        // Fix #6: DOMContentLoaded fires as soon as the DOM is ready, without waiting for images/stylesheets
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
